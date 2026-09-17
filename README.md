@@ -77,6 +77,12 @@ An empty value counts as absent — `FOO: ${FOO:-}` in a compose file arrives as
 an empty string, and reading that as "configured" points the exporter at
 `/v1/traces` on no host at all.
 
+That rule covers `RUST_LOG` too, and it is not academic there: `EnvFilter`'s own
+`try_from_default_env` parses `""` into a valid filter with no directives, which
+enables nothing. A service deployed with `RUST_LOG: ${RUST_LOG:-}` logs
+absolutely nothing and looks dead in `docker logs` while serving normally. Here
+an empty or malformed `RUST_LOG` falls back to `default_filter`.
+
 ## What it puts on a span
 
 Span names are `METHOD /path/with/{id}/replaced`, because a backend's list of

@@ -2,6 +2,16 @@
 
 Semantic versioning. Consumers pin a tag.
 
+## [0.1.2] — 2026-09-16
+
+- **An empty `RUST_LOG` no longer silences the process.** `EnvFilter`'s own
+  `try_from_default_env` parses `""` into a valid filter with no directives, and
+  a filter with no directives enables nothing — so a service deployed with
+  `RUST_LOG: ${RUST_LOG:-}` in its compose file ran in complete silence while
+  answering requests normally. Empty now means absent, as it does everywhere else
+  in this crate, and a malformed `RUST_LOG` falls back to `info` with the reason
+  on stderr rather than taking the logs down with it.
+
 ## [0.1.1] — 2026-09-16
 
 - A failed export now says so. `internal-logs` is enabled on the OTLP exporter

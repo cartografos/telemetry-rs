@@ -219,6 +219,31 @@ pub(crate) fn join_signal_path(base: &str) -> String {
     format!("{trimmed}/v1/traces")
 }
 
+/// The `EnvFilter` directives to install: `RUST_LOG` when it says something,
+/// `default` otherwise.
+///
+/// The reason this is not `EnvFilter::try_from_default_env()` is one character:
+/// an EMPTY `RUST_LOG` parses successfully into a filter with no directives, and
+/// a filter with no directives enables nothing. A service started with
+/// `RUST_LOG: ${RUST_LOG:-}` in its compose file — which reaches the container as
+/// the empty string, not as an absent name — then runs in complete silence, and
+/// the first symptom is a container that looks dead in `docker logs` while it
+/// answers requests normally. Empty means absent here, as it does everywhere else
+/// in this crate.
+pub(crate) fn directives(from_env: Option<String>, default: &str) -> String {
+    from_env
+        .map(|v| v.trim().to_owned())
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| default.to_owned())
+}
+
+/// The raw `RUST_LOG`, as [`directives`] wants it.
+pub(crate) fn rust_log() -> Option<String> {
+    // `EnvFilter::DEFAULT_ENV` is this string; spelled out so this module needs no
+    // dependency on the subscriber to say which variable it reads.
+    env::var("RUST_LOG").ok()
+}
+
 fn var(key: &str) -> Option<String> {
     env::var(key)
         .ok()
@@ -307,6 +332,23 @@ mod tests {
         assert!(
             err.to_string().contains("just-a-word"),
             "the error has to name the entry, or it cannot be found: {err}"
+        );
+    }
+
+    /// The bug this exists to prevent: a container started with
+    /// `RUST_LOG: ${RUST_LOG:-}` logging nothing at all.
+    #[test]
+    fn an_empty_rust_log_falls_back_to_the_default_filter() {
+        assert_eq!(directives(Some(String::new()), "info"), "info");
+        assert_eq!(directives(Some("   ".to_owned()), "info"), "info");
+        assert_eq!(directives(None, "info"), "info");
+    }
+
+    #[test]
+    fn a_real_rust_log_wins() {
+        assert_eq!(
+            directives(Some(" gateway=debug ".to_owned()), "info"),
+            "gateway=debug"
         );
     }
 

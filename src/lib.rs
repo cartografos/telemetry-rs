@@ -281,8 +281,13 @@ impl Builder {
         let config = self.config()?;
         let provider = exporter::provider(&config)?;
 
-        let filter = EnvFilter::try_from_default_env()
-            .unwrap_or_else(|_| EnvFilter::new(&config.default_filter));
+        let directives = config::directives(config::rust_log(), &config.default_filter);
+        let filter = EnvFilter::try_new(&directives).unwrap_or_else(|e| {
+            // A malformed RUST_LOG must not silence a service either. stderr
+            // because the subscriber this filter belongs to is not installed yet.
+            eprintln!("telemetry: RUST_LOG {directives:?} is not a filter ({e}); using info");
+            EnvFilter::new("info")
+        });
 
         let logs = match config.log_format {
             LogFormat::Text => Some(tracing_subscriber::fmt::layer().boxed()),
