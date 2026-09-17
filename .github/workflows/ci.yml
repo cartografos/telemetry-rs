@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets --all-features
+      # The crate has to build without its default feature too: a worker or a CLI
+      # links it with `default-features = false`, and that path is not exercised
+      # by anything above.
+      - run: cargo clippy --all-targets --no-default-features
+      - run: cargo test --all-features
+      - run: cargo test --no-default-features
+      - run: cargo doc --no-deps --all-features

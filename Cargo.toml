@@ -1,0 +1,66 @@
+[package]
+name = "cartografo-telemetry"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "OpenTelemetry tracing for Rust services: one call to install it, one layer for HTTP, W3C context across services, and nothing on the wire until an endpoint is configured."
+repository = "https://github.com/cartografos/telemetry-rs"
+license = "MIT"
+keywords = ["opentelemetry", "tracing", "observability", "otlp", "signoz"]
+categories = ["development-tools::debugging", "web-programming"]
+readme = "README.md"
+
+[features]
+default = ["http"]
+# The tower-http layer, the propagation helpers and everything that needs to know
+# what an HTTP request is. Off, the crate is the exporter and the subscriber alone,
+# which is what a worker or a CLI wants.
+http = ["dep:http", "dep:opentelemetry-http", "dep:tower-http"]
+
+[dependencies]
+opentelemetry = "0.32"
+# No `grpc-tonic`. OTLP over HTTP/protobuf is what survives a reverse proxy, a
+# Cloudflare tunnel and a corporate TLS terminator; gRPC needs end-to-end HTTP/2
+# and a port that is rarely the one published.
+#
+# `reqwest-blocking-client` and NOT `reqwest-client`, which reads like the modern
+# choice and is the wrong one: the SDK's batch processor runs on a dedicated OS
+# thread and drives the export future with `block_on`, so an async client there
+# has no reactor to wake it. The crate's own manifest says so — "Most users should
+# use the default reqwest-blocking-client… Do not enable [the async ones] for the
+# default SDK processors". The blocking client keeps its own runtime and is what
+# that thread expects.
+#
+# `reqwest-rustls-webpki-roots` compiles the Mozilla root store in rather than
+# reading the image's, so a scratch or distroless runtime needs no
+# ca-certificates for a span to leave it. It resolves to rustls over aws-lc-rs
+# (reqwest 0.13 has no path from here to ring), which is a C library: a musl
+# build needs cmake and a C++ compiler in the builder stage.
+opentelemetry-otlp = { version = "0.32", default-features = false, features = [
+    "http-proto",
+    "reqwest-blocking-client",
+    "reqwest-rustls-webpki-roots",
+    "trace",
+] }
+opentelemetry_sdk = { version = "0.32", default-features = false, features = ["trace"] }
+thiserror = "2"
+tracing = "0.1"
+tracing-opentelemetry = { version = "0.33", default-features = false }
+tracing-subscriber = { version = "0.3", default-features = false, features = [
+    "ansi",
+    "env-filter",
+    "fmt",
+    "json",
+    "registry",
+    "std",
+] }
+
+http = { version = "1.1", optional = true }
+opentelemetry-http = { version = "0.32", optional = true }
+tower-http = { version = "0.7", optional = true, features = ["trace"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+
+[package.metadata.docs.rs]
+all-features = true
