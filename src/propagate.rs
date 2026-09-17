@@ -50,11 +50,7 @@ pub fn inject_context_from(span: &Span, headers: &mut HeaderMap) {
 pub fn extract_context(headers: &HeaderMap) -> Option<Context> {
     let context =
         global::get_text_map_propagator(|propagator| propagator.extract(&HeaderExtractor(headers)));
-    context
-        .span()
-        .span_context()
-        .is_valid()
-        .then_some(context)
+    context.span().span_context().is_valid().then_some(context)
 }
 
 /// The current trace's id as the 32 lowercase hex characters a backend searches
@@ -95,7 +91,10 @@ mod tests {
     #[test]
     fn a_malformed_traceparent_extracts_to_nothing() {
         let mut headers = HeaderMap::new();
-        headers.insert("traceparent", "not-a-trace-context".parse().expect("header"));
+        headers.insert(
+            "traceparent",
+            "not-a-trace-context".parse().expect("header"),
+        );
         assert!(
             extract_context(&headers).is_none(),
             "a caller controls this header; an unparseable one makes a root span, not an error"

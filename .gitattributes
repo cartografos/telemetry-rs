@@ -1,0 +1,3 @@
+# The repo is authored on Windows and built on Linux. Checked in as LF so a
+# clone in CI does not differ from the one on the laptop.
+* text=auto eol=lf

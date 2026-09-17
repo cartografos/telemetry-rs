@@ -1,17 +1,15 @@
 //! OpenTelemetry tracing for a Rust service, in one call.
 //!
 //! ```no_run
-//! fn main() {
-//!     let telemetry = cartografo_telemetry::Telemetry::builder("my-service")
-//!         .version(env!("CARGO_PKG_VERSION"))
-//!         .default_filter("my_service=info,tower_http=info")
-//!         .install();
+//! let telemetry = cartografo_telemetry::Telemetry::builder("my-service")
+//!     .version(env!("CARGO_PKG_VERSION"))
+//!     .default_filter("my_service=info,tower_http=info")
+//!     .install();
 //!
-//!     // … serve …
+//! // … serve …
 //!
-//!     // Spans are batched, so the last of them only leave on the way out.
-//!     telemetry.shutdown();
-//! }
+//! // Spans are batched, so the last of them only leave on the way out.
+//! telemetry.shutdown();
 //! ```
 //!
 //! # Nothing on the wire until an endpoint is configured
@@ -32,15 +30,8 @@
 //! [`inject_context`] writes it on the way out. A gateway that injects and a
 //! backend that extracts produce one trace with two spans; either half alone
 //! produces two traces and no error anywhere, which is why both live in one
-//! crate rather than in each service.
-//!
-//! ```no_run
-//! # use http::HeaderMap;
-//! # fn forward(_headers: HeaderMap) {}
-//! let mut headers = HeaderMap::new();
-//! cartografo_telemetry::inject_context(&mut headers); // the outgoing request joins this trace
-//! forward(headers);
-//! ```
+//! crate rather than in each service. Both need the `http` feature, which is on
+//! by default; [`inject_context`] shows the outgoing half.
 //!
 //! # What must not be exported
 //!
@@ -221,7 +212,11 @@ impl Builder {
     /// For a collector published behind Access: without these it answers 403 with
     /// an HTML login page, which an OTLP client reports as a protocol error
     /// rather than as "you are not authenticated".
-    pub fn cloudflare_access(self, client_id: impl Into<String>, secret: impl Into<String>) -> Self {
+    pub fn cloudflare_access(
+        self,
+        client_id: impl Into<String>,
+        secret: impl Into<String>,
+    ) -> Self {
         self.header("CF-Access-Client-Id", client_id)
             .header("CF-Access-Client-Secret", secret)
     }
@@ -240,11 +235,7 @@ impl Builder {
     }
 
     /// Adds a resource attribute to every span.
-    pub fn resource_attribute(
-        mut self,
-        key: impl Into<String>,
-        value: impl Into<String>,
-    ) -> Self {
+    pub fn resource_attribute(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.config
             .resource_attributes
             .push((key.into(), value.into()));
@@ -443,7 +434,10 @@ mod tests {
             .config()
             .expect("configures");
         assert_eq!(
-            config.headers.get("CF-Access-Client-Id").map(String::as_str),
+            config
+                .headers
+                .get("CF-Access-Client-Id")
+                .map(String::as_str),
             Some("id.access")
         );
         assert_eq!(
@@ -476,7 +470,10 @@ mod tests {
             ..Config::new("svc")
         };
         let merged = explicit.over(base);
-        assert_eq!(merged.endpoint.as_deref(), Some("https://explicit/v1/traces"));
+        assert_eq!(
+            merged.endpoint.as_deref(),
+            Some("https://explicit/v1/traces")
+        );
         assert_eq!(
             merged.environment.as_deref(),
             Some("from-env"),

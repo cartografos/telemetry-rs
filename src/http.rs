@@ -132,11 +132,18 @@ impl<B> MakeSpan<B> for HttpSpan {
             url.query = Empty,
             http.response.status_code = Empty,
         );
-        if self.record_query && let Some(query) = request.uri().query() {
+        if self.record_query
+            && let Some(query) = request.uri().query()
+        {
             span.record("url.query", query);
         }
-        if self.adopt_inbound_context && let Some(parent) = extract_context(request.headers()) {
-            span.set_parent(parent);
+        if self.adopt_inbound_context
+            && let Some(parent) = extract_context(request.headers())
+        {
+            // Both ways this can fail are benign and neither is worth a line per
+            // request: the span is disabled, so it exports nothing to parent; or
+            // it has already been entered, which cannot happen to one built here.
+            let _ = span.set_parent(parent);
         }
         span
     }
@@ -212,7 +219,10 @@ mod tests {
 
     #[test]
     fn a_collection_keeps_its_name() {
-        assert_eq!(operation_name("GET", "/api/v1/expenses"), "GET /api/v1/expenses");
+        assert_eq!(
+            operation_name("GET", "/api/v1/expenses"),
+            "GET /api/v1/expenses"
+        );
     }
 
     #[test]
@@ -247,7 +257,10 @@ mod tests {
             operation_name("GET", "/api/v1/reports/card-cut"),
             "GET /api/v1/reports/card-cut"
         );
-        assert_eq!(operation_name("GET", "/api/v1/dec0de"), "GET /api/v1/dec0de");
+        assert_eq!(
+            operation_name("GET", "/api/v1/dec0de"),
+            "GET /api/v1/dec0de"
+        );
     }
 
     #[test]

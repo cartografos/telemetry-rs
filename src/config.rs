@@ -29,10 +29,11 @@ pub enum LogFormat {
 }
 
 /// Which spans are recorded.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum Sampling {
     /// Every span. The right answer for a service whose traffic is small enough
     /// to keep, which is most internal services.
+    #[default]
     AlwaysOn,
     /// A share of the traces, between 0.0 and 1.0, decided once per trace by its
     /// id and respected by every service that sees it.
@@ -40,12 +41,6 @@ pub enum Sampling {
     /// Parent-based: a request that arrives already sampled stays sampled, so a
     /// trace is never half recorded.
     Ratio(f64),
-}
-
-impl Default for Sampling {
-    fn default() -> Self {
-        Self::AlwaysOn
-    }
 }
 
 /// The resolved configuration a [`crate::Telemetry`] is built from.
@@ -157,10 +152,9 @@ impl Config {
         // Cloudflare Access, as the two headers its policies check. Both or
         // neither: one alone is refused exactly like none, and sending half a pair
         // only makes the 403 harder to read.
-        if let (Some(id), Some(secret)) = (
-            var("CF_ACCESS_CLIENT_ID"),
-            var("CF_ACCESS_CLIENT_SECRET"),
-        ) {
+        if let (Some(id), Some(secret)) =
+            (var("CF_ACCESS_CLIENT_ID"), var("CF_ACCESS_CLIENT_SECRET"))
+        {
             self.headers.insert("CF-Access-Client-Id".to_owned(), id);
             self.headers
                 .insert("CF-Access-Client-Secret".to_owned(), secret);
@@ -242,7 +236,9 @@ fn parse_pairs(raw: &str, source: &str) -> Result<Vec<(String, String)>> {
             continue;
         }
         let (key, value) = item.split_once('=').ok_or_else(|| {
-            Error::Config(format!("{source} is key=value,key=value; {item:?} has no '='"))
+            Error::Config(format!(
+                "{source} is key=value,key=value; {item:?} has no '='"
+            ))
         })?;
         let key = key.trim();
         if key.is_empty() {
@@ -293,7 +289,10 @@ mod tests {
         let pairs = parse_pairs(" a=1 , b=2 ,", "T").expect("parses");
         assert_eq!(
             pairs,
-            vec![("a".to_owned(), "1".to_owned()), ("b".to_owned(), "2".to_owned())]
+            vec![
+                ("a".to_owned(), "1".to_owned()),
+                ("b".to_owned(), "2".to_owned())
+            ]
         );
     }
 

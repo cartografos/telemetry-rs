@@ -3,7 +3,7 @@
 use opentelemetry::KeyValue;
 use opentelemetry_otlp::{Protocol, SpanExporter, WithExportConfig, WithHttpConfig};
 use opentelemetry_sdk::Resource;
-use opentelemetry_sdk::trace::{SdkTracerProvider, Sampler};
+use opentelemetry_sdk::trace::{Sampler, SdkTracerProvider};
 
 use crate::config::{Config, Sampling};
 use crate::error::{Error, Result};
@@ -45,9 +45,9 @@ fn sampler(sampling: Sampling) -> Sampler {
         // Clamped rather than refused: a ratio outside [0, 1] is a typo in an
         // environment variable, and the useful reading of one is "all of it" or
         // "none of it" — not a service that will not start.
-        Sampling::Ratio(ratio) => Sampler::ParentBased(Box::new(Sampler::TraceIdRatioBased(
-            ratio.clamp(0.0, 1.0),
-        ))),
+        Sampling::Ratio(ratio) => {
+            Sampler::ParentBased(Box::new(Sampler::TraceIdRatioBased(ratio.clamp(0.0, 1.0))))
+        }
     }
 }
 
