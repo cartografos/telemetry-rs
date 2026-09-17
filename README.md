@@ -83,6 +83,12 @@ enables nothing. A service deployed with `RUST_LOG: ${RUST_LOG:-}` logs
 absolutely nothing and looks dead in `docker logs` while serving normally. Here
 an empty or malformed `RUST_LOG` falls back to `default_filter`.
 
+For the same reason, this crate's own target and the OpenTelemetry ones are added
+to whatever filter is in force, so a rejected export is visible even under a
+filter that names only the application's crates. A bare level (`info`) already
+covers them and is left alone, and so is any target the caller named — including
+`opentelemetry=off`.
+
 ## What it puts on a span
 
 Span names are `METHOD /path/with/{id}/replaced`, because a backend's list of

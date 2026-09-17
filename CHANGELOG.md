@@ -2,6 +2,16 @@
 
 Semantic versioning. Consumers pin a tag.
 
+## [0.1.3] — 2026-09-17
+
+- **The exporter's own complaints are no longer hidden by the service's log
+  filter.** A filter that names crates — `gateway=info,tower_http=info`, the
+  normal shape — enables exactly those, so a collector answering 403 to every
+  export said nothing anyone could see. `cartografo_telemetry` and the
+  OpenTelemetry targets are now added to the filter unless a bare level already
+  covers them or the caller named them explicitly, so `opentelemetry=off` still
+  means off.
+
 ## [0.1.2] — 2026-09-16
 
 - **An empty `RUST_LOG` no longer silences the process.** `EnvFilter`'s own

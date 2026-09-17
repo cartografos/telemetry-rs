@@ -237,6 +237,70 @@ pub(crate) fn directives(from_env: Option<String>, default: &str) -> String {
         .unwrap_or_else(|| default.to_owned())
 }
 
+/// The targets this crate makes sure stay audible, and at what level.
+///
+/// `cartografo_telemetry` says where it is exporting to; the OpenTelemetry crates
+/// are how a rejected export, an expired credential or an unreachable collector
+/// announces itself. A telemetry library whose failures are only visible if the
+/// application happened to allow its target is a library that fails in silence.
+pub(crate) const DIAGNOSTIC_DIRECTIVES: [(&str, &str); 4] = [
+    ("cartografo_telemetry", "info"),
+    ("opentelemetry", "warn"),
+    ("opentelemetry_sdk", "warn"),
+    ("opentelemetry_otlp", "warn"),
+];
+
+/// Adds [`DIAGNOSTIC_DIRECTIVES`] to `directives`, unless they are already
+/// covered.
+///
+/// Covered means one of two things, and both are left alone:
+///
+/// - the filter carries a BARE level (`info`, `debug`), which applies to every
+///   target including these, so adding a per-target directive here would only
+///   make some of them quieter than the caller asked for;
+/// - the target is already named, in which case the caller has an opinion about
+///   it — including `opentelemetry=off`, which has to keep working.
+///
+/// What it fixes is the other shape, the common one for a service that names its
+/// own crates: `gateway=info,tower_http=info` enables exactly two targets, and a
+/// collector answering 403 to every export is not one of them.
+pub(crate) fn with_diagnostics(directives: String) -> String {
+    if has_bare_level(&directives) {
+        return directives;
+    }
+    let mut out = directives;
+    for (target, level) in DIAGNOSTIC_DIRECTIVES {
+        if names_target(&out, target) {
+            continue;
+        }
+        if !out.is_empty() {
+            out.push(',');
+        }
+        out.push_str(target);
+        out.push('=');
+        out.push_str(level);
+    }
+    out
+}
+
+fn has_bare_level(directives: &str) -> bool {
+    directives.split(',').any(|item| {
+        let item = item.trim();
+        !item.is_empty()
+            && !item.contains('=')
+            && matches!(
+                item.to_ascii_lowercase().as_str(),
+                "off" | "error" | "warn" | "info" | "debug" | "trace"
+            )
+    })
+}
+
+fn names_target(directives: &str, target: &str) -> bool {
+    directives
+        .split(',')
+        .any(|item| item.trim().split('=').next().map(str::trim) == Some(target))
+}
+
 /// The raw `RUST_LOG`, as [`directives`] wants it.
 pub(crate) fn rust_log() -> Option<String> {
     // `EnvFilter::DEFAULT_ENV` is this string; spelled out so this module needs no
@@ -349,6 +413,38 @@ mod tests {
         assert_eq!(
             directives(Some(" gateway=debug ".to_owned()), "info"),
             "gateway=debug"
+        );
+    }
+
+    /// The case that made this exist: a service that names its own crates never
+    /// sees the exporter complain.
+    #[test]
+    fn a_targeted_filter_gains_the_diagnostics() {
+        let out = with_diagnostics("gateway=info,tower_http=info".to_owned());
+        assert!(out.starts_with("gateway=info,tower_http=info"));
+        assert!(out.contains("cartografo_telemetry=info"));
+        assert!(out.contains("opentelemetry_otlp=warn"));
+    }
+
+    #[test]
+    fn a_bare_level_already_covers_them() {
+        assert_eq!(with_diagnostics("info".to_owned()), "info");
+        assert_eq!(
+            with_diagnostics("debug,hyper=warn".to_owned()),
+            "debug,hyper=warn",
+            "a bare level applies to every target; narrowing one here would make it \
+             quieter than asked for"
+        );
+    }
+
+    /// Silencing the exporter on purpose has to keep working.
+    #[test]
+    fn an_explicit_opinion_is_left_alone() {
+        let out = with_diagnostics("gateway=info,opentelemetry=off".to_owned());
+        assert!(out.contains("opentelemetry=off"));
+        assert!(
+            !out.contains("opentelemetry=warn"),
+            "the caller said off: {out}"
         );
     }
 

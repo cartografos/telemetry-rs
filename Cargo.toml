@@ -1,6 +1,6 @@
 [package]
 name = "cartografo-telemetry"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2024"
 rust-version = "1.85"
 description = "OpenTelemetry tracing for Rust services: one call to install it, one layer for HTTP, W3C context across services, and nothing on the wire until an endpoint is configured."
