@@ -2,6 +2,18 @@
 
 Semantic versioning. Consumers pin a tag.
 
+## [0.1.1] — 2026-09-16
+
+- A failed export now says so. `internal-logs` is enabled on the OTLP exporter
+  and the SDK, so a 403, a DNS failure or a rejected payload reaches stdout
+  instead of leaving an empty backend that looks exactly like no traffic. Safe
+  because those crates' own events were already kept out of the export layer;
+  otherwise a failing exporter would try to export the news of it.
+- `DEFAULT_FILTERED_TARGETS` covers the hyphenated spellings of the
+  OpenTelemetry crate names too. A target is usually `module_path!()` and has
+  underscores, but some of these are set by hand to the package name, and one
+  missing spelling is one event that closes the loop.
+
 ## [0.1.0] — 2026-09-16
 
 First release.

@@ -81,10 +81,15 @@ pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// Crate names whose own logs must not be exported. See
 /// [`Config::export_filtered_targets`].
-pub const DEFAULT_FILTERED_TARGETS: [&str; 9] = [
+pub const DEFAULT_FILTERED_TARGETS: [&str; 11] = [
     "opentelemetry",
     "opentelemetry_sdk",
     "opentelemetry_otlp",
+    // Both spellings: a target is usually `module_path!()` and therefore has
+    // underscores, but the OpenTelemetry crates set some of theirs by hand to the
+    // package name. One missing spelling is one event that closes the loop.
+    "opentelemetry-sdk",
+    "opentelemetry-otlp",
     "reqwest",
     "rustls",
     "hyper",

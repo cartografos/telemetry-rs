@@ -1,6 +1,6 @@
 [package]
 name = "cartografo-telemetry"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 rust-version = "1.85"
 description = "OpenTelemetry tracing for Rust services: one call to install it, one layer for HTTP, W3C context across services, and nothing on the wire until an endpoint is configured."
@@ -36,13 +36,24 @@ opentelemetry = "0.32"
 # ca-certificates for a span to leave it. It resolves to rustls over aws-lc-rs
 # (reqwest 0.13 has no path from here to ring), which is a C library: a musl
 # build needs cmake and a C++ compiler in the builder stage.
+#
+# `internal-logs` is what makes a failed export SAY so. Without it the exporter
+# fails in silence and the only symptom is an empty backend, which is the same
+# symptom as no traffic. It is safe to enable precisely because
+# `Config::export_filtered_targets` keeps these crates' own events out of the
+# export layer: they reach stdout, where somebody can read them, and go no
+# further — otherwise a failing exporter would try to export the news of it.
 opentelemetry-otlp = { version = "0.32", default-features = false, features = [
     "http-proto",
+    "internal-logs",
     "reqwest-blocking-client",
     "reqwest-rustls-webpki-roots",
     "trace",
 ] }
-opentelemetry_sdk = { version = "0.32", default-features = false, features = ["trace"] }
+opentelemetry_sdk = { version = "0.32", default-features = false, features = [
+    "internal-logs",
+    "trace",
+] }
 thiserror = "2"
 tracing = "0.1"
 tracing-opentelemetry = { version = "0.33", default-features = false }
